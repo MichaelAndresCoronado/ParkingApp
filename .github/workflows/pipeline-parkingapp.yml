@@ -1,0 +1,50 @@
+name: CI/CD ParkingApp - Sonar y Telegram
+
+on:
+  push:
+    branches:
+      - main
+      - development # Puedes cambiar o agregar las ramas que uses
+
+jobs:
+  build-and-analyze:
+    name: Build, SonarCloud y Notificación
+    runs-on: ubuntu-latest
+    
+    steps:
+      # 1. Descarga el código
+      - name: Checkout del código
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0  # Fundamental para que Sonar analice bien el historial
+
+      # 2. Configura Java (Asumiendo que usas Spring Boot/Java 17)
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: maven
+
+      # 3. Compila y ejecuta el escaneo de SonarCloud
+      - name: Build and analyze with SonarCloud
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        # NOTA: Revisa que la projectKey sea la correcta (suele ser tuUsuario_nombreRepo)
+        run: mvn -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar -Dsonar.projectKey=MichaelAndresCoronado_ParkingApp
+
+      # 4. Enviar notificación a Telegram (Se ejecuta siempre, pase o falle)
+      - name: Notificación de Telegram
+        if: always() 
+        uses: appleboy/telegram-action@master
+        with:
+          to: ${{ secrets.TELEGRAM_TO }}
+          token: ${{ secrets.TELEGRAM_TOKEN }}
+          format: html
+          message: |
+            🚗 <b>Pipeline ParkingApp Ejecutado</b>
+            <b>Microservicio:</b> ms-parking
+            <b>Responsable:</b> ${{ github.actor }}
+            <b>Estado:</b> ${{ job.status }}
+            <b>Rama:</b> ${{ github.ref_name }}
